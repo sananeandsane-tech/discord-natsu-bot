@@ -1,0 +1,16 @@
+{
+  "name": "@workspace/discord-bot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --env-file=../../.env src/index.js 2>/dev/null || node src/index.js",
+    "start": "node src/index.js",
+    "deploy-commands": "node src/deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.21.0",
+    "@discordjs/rest": "^2.5.0",
+    "discord-api-types": "^0.38.0"
+  }
+}

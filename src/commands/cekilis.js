@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, PermissionFlagsBits } from 'discord.js';
 import {
-  createGiveaway, getGiveaway, finalizeGiveaway, endGiveaway, pickWinners,
+  createGiveaway, getGiveaway, finalizeGiveaway, pickWinners,
   buildGiveawayEmbed, buildGiveawayRow, getAllActive,
 } from '../giveaway.js';
 
@@ -35,14 +35,17 @@ export default {
     const sub = interaction.options.getSubcommand();
 
     if (sub === 'basla') {
+      // Defer first to avoid 3-second timeout while sending giveaway message
+      await interaction.deferReply({ flags: 64 });
+
       const prize        = interaction.options.getString('odul');
       const durationMin  = interaction.options.getInteger('sure');
       const winnersCount = interaction.options.getInteger('kazanan') ?? 1;
       const endsAt       = Date.now() + durationMin * 60_000;
 
-      const tmpEmbed = buildGiveawayEmbed({ prize, winnersCount, endsAt, participants: [] });
-      const row      = buildGiveawayRow();
-      const msg      = await interaction.channel.send({ embeds: [tmpEmbed], components: [row] });
+      const embed = buildGiveawayEmbed({ prize, winnersCount, endsAt, participants: [] });
+      const row   = buildGiveawayRow();
+      const msg   = await interaction.channel.send({ embeds: [embed], components: [row] });
 
       createGiveaway({
         messageId: msg.id,
@@ -55,16 +58,16 @@ export default {
       const timeout = Math.min(durationMin * 60_000, 2_147_483_647);
       setTimeout(() => finalizeGiveaway(interaction.client, msg.id), timeout);
 
-      await interaction.reply({ content: `✅ Çekiliş başlatıldı! 🎉 **${prize}** — ${durationMin} dakika`, ephemeral: true });
+      await interaction.editReply({ content: `✅ Çekiliş başlatıldı! 🎉 **${prize}** — ${durationMin} dakika` });
     }
 
     else if (sub === 'bitir') {
       const messageId = interaction.options.getString('mesaj_id');
       const ga = getGiveaway(messageId);
-      if (!ga) return interaction.reply({ content: '❌ Bu ID\'ye ait çekiliş bulunamadı.', ephemeral: true });
-      if (ga.ended) return interaction.reply({ content: '❌ Bu çekiliş zaten bitti.', ephemeral: true });
+      if (!ga) return interaction.reply({ content: '❌ Bu ID\'ye ait çekiliş bulunamadı.', flags: 64 });
+      if (ga.ended) return interaction.reply({ content: '❌ Bu çekiliş zaten bitti.', flags: 64 });
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: 64 });
       await finalizeGiveaway(interaction.client, messageId);
       await interaction.editReply({ content: '✅ Çekiliş sonlandırıldı.' });
     }
@@ -72,8 +75,8 @@ export default {
     else if (sub === 'yeniden-cek') {
       const messageId = interaction.options.getString('mesaj_id');
       const ga = getGiveaway(messageId);
-      if (!ga) return interaction.reply({ content: '❌ Çekiliş bulunamadı.', ephemeral: true });
-      if (!ga.ended) return interaction.reply({ content: '❌ Çekiliş henüz bitmedi. Önce `/cekilis bitir` kullan.', ephemeral: true });
+      if (!ga) return interaction.reply({ content: '❌ Çekiliş bulunamadı.', flags: 64 });
+      if (!ga.ended) return interaction.reply({ content: '❌ Çekiliş henüz bitmedi. Önce `/cekilis bitir` kullan.', flags: 64 });
 
       const winners = pickWinners(ga, ga.winnersCount);
       const winText = winners.length
@@ -85,13 +88,13 @@ export default {
 
     else if (sub === 'liste') {
       const active = getAllActive(interaction.guildId);
-      if (!active.length) return interaction.reply({ content: '📭 Aktif çekiliş yok.', ephemeral: true });
+      if (!active.length) return interaction.reply({ content: '📭 Aktif çekiliş yok.', flags: 64 });
 
       const list = active.map((g, i) =>
-        `${i + 1}. **${g.prize}** — ${g.participants.length} katılımcı — <t:${Math.floor(g.endsAt / 1000)}:R> — [Mesaj ID: ${g.messageId}]`
+        `${i + 1}. **${g.prize}** — ${g.participants.length} katılımcı — <t:${Math.floor(g.endsAt / 1000)}:R> — Mesaj ID: \`${g.messageId}\``
       ).join('\n');
 
-      await interaction.reply({ content: `🎉 **Aktif Çekilişler:**\n${list}`, ephemeral: true });
+      await interaction.reply({ content: `🎉 **Aktif Çekilişler:**\n${list}`, flags: 64 });
     }
-  }
+  },
 };

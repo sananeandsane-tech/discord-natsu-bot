@@ -20,6 +20,8 @@ import {
   logRoleChange,
 } from './logger.js';
 import { sendWelcome } from './welcome.js';
+import { joinGiveaway, leaveGiveaway, getGiveaway, buildGiveawayEmbed, buildGiveawayRow } from './giveaway.js';
+import { openTicket, closeTicket } from './ticket.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_BOT_TOKEN ayarlanmamış.');
@@ -78,6 +80,36 @@ client.on(Events.GuildRoleUpdate, handleRoleUpdate);
 client.on(Events.GuildUpdate,    handleGuildUpdate);
 
 client.on(Events.InteractionCreate, async (interaction) => {
+  // Button interactions
+  if (interaction.isButton()) {
+    const id = interaction.customId;
+
+    // Giveaway buttons
+    if (id === 'giveaway_join' || id === 'giveaway_leave') {
+      const ga = getGiveaway(interaction.message.id);
+      if (!ga || ga.ended) {
+        return interaction.reply({ content: '❌ Bu çekiliş artık aktif değil.', flags: 64 });
+      }
+      if (id === 'giveaway_join') {
+        const updated = joinGiveaway(ga.messageId, interaction.user.id);
+        const embed   = buildGiveawayEmbed(updated);
+        await interaction.message.edit({ embeds: [embed], components: interaction.message.components });
+        return interaction.reply({ content: '✅ Çekilişe katıldın! 🎉', flags: 64 });
+      } else {
+        const updated = leaveGiveaway(ga.messageId, interaction.user.id);
+        const embed   = buildGiveawayEmbed(updated);
+        await interaction.message.edit({ embeds: [embed], components: interaction.message.components });
+        return interaction.reply({ content: '❌ Çekilişten ayrıldın.', flags: 64 });
+      }
+    }
+
+    // Ticket buttons
+    if (id === 'ticket_open') return openTicket(interaction);
+    if (id === 'ticket_close') return closeTicket(interaction);
+    return;
+  }
+
+  // Slash commands
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
   if (!command) return;
@@ -85,9 +117,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
     await command.execute(interaction);
   } catch (err) {
     console.error(`Error in /${interaction.commandName}:`, err);
-    const msg = { content: '❌ Komut çalıştırılırken hata oluştu.', ephemeral: true };
-    if (interaction.replied || interaction.deferred) await interaction.followUp(msg);
-    else await interaction.reply(msg);
+    const msg = { content: '❌ Komut çalıştırılırken hata oluştu.', flags: 64 };
+    if (interaction.replied || interaction.deferred) await interaction.followUp(msg).catch(() => {});
+    else await interaction.reply(msg).catch(() => {});
   }
 });
 

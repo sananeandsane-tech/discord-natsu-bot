@@ -8,7 +8,7 @@ export default {
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
   async execute(interaction) {
-    await interaction.reply({ content: '✅ Hoşgeldin mesajı gönderiliyor...', ephemeral: true });
+    await interaction.reply({ content: '✅ Hoşgeldin mesajı gönderiliyor...', flags: 64 });
     await sendWelcome(interaction.member);
   },
 };

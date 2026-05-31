@@ -19,6 +19,7 @@ import {
   logVoiceState,
   logRoleChange,
 } from './logger.js';
+import { sendWelcome } from './welcome.js';
 
 if (!config.token) {
   console.error('❌ DISCORD_BOT_TOKEN ayarlanmamış.');
@@ -62,7 +63,9 @@ client.on(Events.MessageCreate, async (message) => {
 client.on(Events.MessageDelete, logMessageDelete);
 client.on(Events.MessageUpdate, logMessageEdit);
 
-client.on(Events.GuildMemberAdd,    logMemberJoin);
+client.on(Events.GuildMemberAdd, async (member) => {
+  await Promise.allSettled([logMemberJoin(member), sendWelcome(member)]);
+});
 client.on(Events.GuildMemberRemove, logMemberLeave);
 client.on(Events.GuildMemberUpdate, logRoleChange);
 

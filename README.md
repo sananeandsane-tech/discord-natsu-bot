@@ -1,8 +1,9 @@
 # Natsu Animanga Discord Bot
 
-A full-featured Discord moderation and leveling bot built with discord.js v14.
+A full-featured Discord moderation, leveling and welcome bot built with discord.js v14.
 
 ## Features
+- **Welcome System** — Rich embed welcome message with role assignment on join + `/welcometest`
 - **Level / XP System** — XP per message, level-up announcements
 - **Moderation** — `/ban`, `/kick`, `/mute`, `/warn`, `/warnings`, `/purge`
 - **Anti-Nuke** — Detects mass channel/role deletes, mass bans, admin perm grants
@@ -11,10 +12,18 @@ A full-featured Discord moderation and leveling bot built with discord.js v14.
 - **5 Log Channels** — Voice, messages, join/leave, roles, punishments (by channel ID)
 - **Info Commands** — `/serverinfo`, `/userinfo` with weekly stats, `/rank`, `/leaderboard`, `/botinfo`
 
+## Environment Variables
+| Variable | Description |
+|----------|-------------|
+| `DISCORD_BOT_TOKEN` | Your bot token from Discord Developer Portal |
+| `KARSILAMA_ROLE_ID` | Role ID to assign + tag on member join |
+| `KURALLAR_KANAL_ID` | Rules channel ID (linked in welcome embed) |
+| `DUYURULAR_KANAL_ID` | Announcements channel ID (linked in welcome embed) |
+
 ## Setup
 ```bash
 npm install
-# Set DISCORD_BOT_TOKEN as environment variable
+# Set all env vars above
 npm run deploy-commands
 npm start
 ```
@@ -24,7 +33,7 @@ npm start
 |-----|---------|
 | `SES_LOG` | Voice activity |
 | `MESAJ_LOG` | Message edits & deletes |
-| `GIRIS_CIKIS_LOG` | Member joins & leaves |
+| `GIRIS_CIKIS_LOG` | Member joins, leaves & welcome messages |
 | `ROL_LOG` | Role changes |
 | `CEZA_LOG` | All punishments |
 

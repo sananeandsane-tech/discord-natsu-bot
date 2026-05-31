@@ -26,6 +26,12 @@ export const config = {
     CEZA_LOG:        '1510280387472003232',
   },
 
+  welcome: {
+    karsilamaRoleId:  process.env.KARSILAMA_ROLE_ID  ?? '',
+    kurallarKanalId:  process.env.KURALLAR_KANAL_ID  ?? '',
+    duyurularKanalId: process.env.DUYURULAR_KANAL_ID ?? '',
+  },
+
   antispam: {
     messageLimit: 10,
     windowMs: 5_000,

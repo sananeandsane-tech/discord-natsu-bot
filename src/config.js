@@ -27,9 +27,10 @@ export const config = {
   },
 
   welcome: {
-    karsilamaRoleId:  process.env.KARSILAMA_ROLE_ID  ?? '',
-    kurallarKanalId:  process.env.KURALLAR_KANAL_ID  ?? '',
-    duyurularKanalId: process.env.DUYURULAR_KANAL_ID ?? '',
+    hosgeldinKanalId: process.env.HOSGELDIN_KANAL_ID  ?? '',
+    karsilamaRoleId:  process.env.KARSILAMA_ROLE_ID   ?? '',
+    kurallarKanalId:  process.env.KURALLAR_KANAL_ID   ?? '',
+    duyurularKanalId: process.env.DUYURULAR_KANAL_ID  ?? '',
   },
 
   antispam: {

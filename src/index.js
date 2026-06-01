@@ -62,8 +62,12 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     });
     console.log(`🎮 Status: Playing ${config.botStatus.text}`);
 
-    // Voice Hub panel mesajını başlat / yenile
-    await initVoiceHub(c);
+    // Voice Hub panel mesajını başlat — hata olursa botu çökertme
+    try {
+      await initVoiceHub(c);
+    } catch (err) {
+      console.error('[VoiceHub] initVoiceHub başlatılamadı:', err.message);
+    }
   });
 
   // ── Messages ───────────────────────────────────────────────────────────────
@@ -106,7 +110,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
 
   // ── Interactions ───────────────────────────────────────────────────────────
   client.on(Events.InteractionCreate, async (interaction) => {
-    // ── Buttons ──
     if (interaction.isButton()) {
       try {
         const id = interaction.customId;
@@ -142,7 +145,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       return;
     }
 
-    // ── Slash commands ──
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -158,8 +160,12 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     }
   });
 
-  // ── Offline DM ─────────────────────────────────────────────────────────────
-  async function sendOfflineDM(reason) {
+  // ── Offline DM — sadece bir kez gönder ────────────────────────────────────
+  let shutdownSent = false;
+
+  async function sendOfflineDM() {
+    if (shutdownSent) return;
+    shutdownSent = true;
     try {
       const user = await client.users.fetch(OWNER_DM_ID);
       await user.send('deaktif oldum');
@@ -170,22 +176,25 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
   }
 
   process.on('SIGTERM', async () => {
-    await sendOfflineDM('SIGTERM');
+    await sendOfflineDM();
     client.destroy();
     process.exit(0);
   });
 
   process.on('SIGINT', async () => {
-    await sendOfflineDM('SIGINT');
+    await sendOfflineDM();
     client.destroy();
     process.exit(0);
   });
 
-  process.on('uncaughtException', async (err) => {
+  process.on('uncaughtException', (err) => {
+    // Crash loop'u önlemek için sadece logla, DM gönderme, çık
     console.error('Uncaught exception:', err);
-    await sendOfflineDM('uncaughtException').catch(() => {});
-    client.destroy();
     process.exit(1);
+  });
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason);
   });
 
   // ── Login ──────────────────────────────────────────────────────────────────

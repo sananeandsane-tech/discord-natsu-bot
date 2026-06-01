@@ -24,6 +24,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
   import { openTicket, closeTicket } from './ticket.js';
   import { handleBang } from './bang.js';
   import {
+    initVoiceHub,
     handleVoiceChannelCreate,
     handleVoiceChannelDelete,
     handleVoiceHubButton,
@@ -52,7 +53,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
   await loadCommands(client);
 
   // ── Ready ──────────────────────────────────────────────────────────────────
-  client.once(Events.ClientReady, (c) => {
+  client.once(Events.ClientReady, async (c) => {
     console.log(`✅ Logged in as ${c.user.tag}`);
     console.log(`📊 Serving ${c.guilds.cache.size} guild(s)`);
     c.user.setPresence({
@@ -60,6 +61,9 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       status: 'online',
     });
     console.log(`🎮 Status: Playing ${config.botStatus.text}`);
+
+    // Voice Hub panel mesajını başlat / yenile
+    await initVoiceHub(c);
   });
 
   // ── Messages ───────────────────────────────────────────────────────────────
@@ -107,12 +111,12 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       try {
         const id = interaction.customId;
 
-        // Voice Hub butonları — vc_rename_, vc_lock_, vc_unlock_ prefix
-        if (id.startsWith('vc_rename_') || id.startsWith('vc_lock_') || id.startsWith('vc_unlock_')) {
+        // Voice Hub butonları
+        if (id === 'vc_rename' || id === 'vc_lock' || id === 'vc_unlock') {
           return await handleVoiceHubButton(interaction);
         }
 
-        // Giveaway buttons — deferUpdate first to instantly acknowledge, prevents crash
+        // Giveaway buttons
         if (id === 'giveaway_join' || id === 'giveaway_leave') {
           await interaction.deferUpdate();
           const ga = getGiveaway(interaction.message.id);

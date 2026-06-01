@@ -16,9 +16,14 @@ const commandsPath = join(__dirname, 'commands');
 const files = readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
 for (const file of files) {
-  const mod = await import(`./commands/${file}`);
-  const cmd = mod.default ?? mod;
-  if (cmd?.data) commands.push(cmd.data.toJSON());
+  const mod      = await import(`./commands/${file}`);
+  const exported = mod.default ?? mod;
+
+  // Support both a single command object and an array of commands
+  const list = Array.isArray(exported) ? exported : [exported];
+  for (const cmd of list) {
+    if (cmd?.data) commands.push(cmd.data.toJSON());
+  }
 }
 
 const rest = new REST({ version: '10' }).setToken(token);

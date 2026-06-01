@@ -4,12 +4,16 @@ import {
     ButtonBuilder,
     ButtonStyle,
     ChannelType,
-    PermissionFlagsBits,
   } from 'discord.js';
   import { config } from './config.js';
 
   // Geçici kanalları takip et: channelId → { ownerId, panelMessageId }
   const tempChannels = new Map();
+
+  async function fetchTextChannel(guild, id) {
+    // Önce cache'e bak, yoksa Discord API'den çek
+    return guild.channels.cache.get(id) ?? await guild.channels.fetch(id).catch(() => null);
+  }
 
   /**
    * Hub kanalına birisi katıldığında çağrılır.
@@ -19,7 +23,10 @@ import {
     const HUB_ID  = config.voiceHub?.hubChannelId;
     const TEXT_ID = config.voiceHub?.panelTextChannelId;
 
-    if (!HUB_ID || !TEXT_ID) return;
+    if (!HUB_ID || !TEXT_ID) {
+      console.error('[VoiceHub] hubChannelId veya panelTextChannelId config.js içinde tanımlı değil!');
+      return;
+    }
     if (newState.channelId !== HUB_ID) return;
 
     const member = newState.member;
@@ -66,8 +73,12 @@ import {
           .setEmoji('🔓'),
       );
 
-      const textChannel = guild.channels.cache.get(TEXT_ID);
-      if (!textChannel) return;
+      // Cache'den bulamazsa API'den zorla çek
+      const textChannel = await fetchTextChannel(guild, TEXT_ID);
+      if (!textChannel) {
+        console.error(`[VoiceHub] Panel metin kanalı bulunamadı! ID: ${TEXT_ID}`);
+        return;
+      }
 
       const panelMessage = await textChannel.send({ embeds: [embed], components: [row] });
 
@@ -76,6 +87,8 @@ import {
         ownerId: member.id,
         panelMessageId: panelMessage.id,
       });
+
+      console.log(`[VoiceHub] Kanal oluşturuldu: ${newChannel.name} | Sahip: ${member.displayName}`);
 
     } catch (err) {
       console.error('[VoiceHub] Kanal oluşturulurken hata:', err);
@@ -107,15 +120,14 @@ import {
     tempChannels.delete(leftChannelId);
 
     try {
-      // Ses kanalını sil
       await channel.delete('Geçici kanal boşaldı.');
+      console.log(`[VoiceHub] Geçici kanal silindi: ${channel.name}`);
     } catch (err) {
       console.error('[VoiceHub] Kanal silinemedi:', err);
     }
 
     try {
-      // Kontrol paneli mesajını sil
-      const textChannel = oldState.guild.channels.cache.get(TEXT_ID);
+      const textChannel = await fetchTextChannel(oldState.guild, TEXT_ID);
       if (textChannel) {
         const panelMsg = await textChannel.messages.fetch(panelMessageId).catch(() => null);
         if (panelMsg) await panelMsg.delete();
@@ -127,7 +139,6 @@ import {
 
   /**
    * Buton etkileşimlerini işler.
-   * vc_rename_, vc_lock_, vc_unlock_ prefix'li customId'ler buraya gelir.
    */
   export async function handleVoiceHubButton(interaction) {
     const { customId, guild, user } = interaction;
@@ -144,7 +155,7 @@ import {
       action    = 'unlock';
       channelId = customId.replace('vc_unlock_', '');
     } else {
-      return false; // Bu modüle ait değil
+      return false;
     }
 
     const channelData = tempChannels.get(channelId);
@@ -153,7 +164,6 @@ import {
       return true;
     }
 
-    // Sahiplik kontrolü
     if (channelData.ownerId !== user.id) {
       await interaction.reply({
         content: '❌ Bu kanalın sahibi değilsiniz, bu butonları kullanamazsınız.',
@@ -162,7 +172,7 @@ import {
       return true;
     }
 
-    const voiceChannel = guild.channels.cache.get(channelId);
+    const voiceChannel = guild.channels.cache.get(channelId) ?? await guild.channels.fetch(channelId).catch(() => null);
     if (!voiceChannel) {
       await interaction.reply({ content: '❌ Ses kanalı bulunamadı.', flags: 64 });
       return true;
@@ -183,10 +193,7 @@ import {
         });
 
         const newName = collected.first().content.trim().slice(0, 100);
-
-        // Kullanıcının mesajını sil
         await collected.first().delete().catch(() => {});
-
         await voiceChannel.setName(`🔊 ${newName}`);
         await interaction.followUp({ content: `✅ Kanal adı **🔊 ${newName}** olarak değiştirildi.`, flags: 64 });
 
@@ -195,15 +202,11 @@ import {
       }
 
     } else if (action === 'lock') {
-      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
-        Connect: false,
-      });
+      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, { Connect: false });
       await interaction.reply({ content: '🔒 Kanal kilitlendi. Artık kimse katılamaz.', flags: 64 });
 
     } else if (action === 'unlock') {
-      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, {
-        Connect: true,
-      });
+      await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, { Connect: true });
       await interaction.reply({ content: '🔓 Kanal kilidi açıldı. Herkes katılabilir.', flags: 64 });
     }
 

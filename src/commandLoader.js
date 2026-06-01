@@ -9,13 +9,19 @@ export async function loadCommands(client) {
   const files = readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
   for (const file of files) {
-    const mod = await import(`./commands/${file}`);
-    const command = mod.default ?? mod;
-    if (!command?.data || !command?.execute) {
-      console.warn(`⚠️  Skipping ${file} — missing data or execute`);
-      continue;
+    const mod      = await import(`./commands/${file}`);
+    const exported = mod.default ?? mod;
+
+    // Support both a single command object and an array of commands
+    const list = Array.isArray(exported) ? exported : [exported];
+
+    for (const command of list) {
+      if (!command?.data || !command?.execute) {
+        console.warn(`⚠️  Skipping command in ${file} — missing data or execute`);
+        continue;
+      }
+      client.commands.set(command.data.name, command);
+      console.log(`📦 Loaded command: /${command.data.name}`);
     }
-    client.commands.set(command.data.name, command);
-    console.log(`📦 Loaded command: /${command.data.name}`);
   }
 }

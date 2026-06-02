@@ -6,18 +6,6 @@ export const config = {
       text: 'Natsu Animanga Yetkili Alım',
     },
 
-    xpPerMessage: 15,
-    xpCooldownMs: 60_000,
-
-    levels: [
-      { level: 1,  xpRequired: 0,     color: 0x808080, name: 'Newcomer' },
-      { level: 2,  xpRequired: 100,   color: 0x00b0f4, name: 'Member' },
-      { level: 5,  xpRequired: 500,   color: 0x57f287, name: 'Regular' },
-      { level: 10, xpRequired: 1500,  color: 0xfee75c, name: 'Veteran' },
-      { level: 20, xpRequired: 5000,  color: 0xed4245, name: 'Elite' },
-      { level: 30, xpRequired: 12000, color: 0xf47fff, name: 'Legend' },
-    ],
-
     logs: {
       SES_LOG:         '1495410308968091850',
       MESAJ_LOG:       '1495410309978918975',
@@ -60,20 +48,4 @@ export const config = {
       panelTextChannelId: process.env.VOICE_PANEL_TEXT_CHANNEL_ID ?? 'placeholder_text_id',
     },
   };
-
-  export function getLevelForXP(xp) {
-    let current = config.levels[0];
-    for (const lvl of config.levels) {
-      if (xp >= lvl.xpRequired) current = lvl;
-      else break;
-    }
-    return current;
-  }
-
-  export function getNextLevel(xp) {
-    for (const lvl of config.levels) {
-      if (xp < lvl.xpRequired) return lvl;
-    }
-    return null;
-  }
   

@@ -1,7 +1,6 @@
 import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'discord.js';
   import { config } from './config.js';
   import { loadCommands } from './commandLoader.js';
-  import { handleXP } from './xp.js';
   import { handleAutoMod } from './automod.js';
   import { handleAntiSpam } from './antispam.js';
   import {
@@ -74,7 +73,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
   client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guild) return;
     await Promise.allSettled([
-      handleXP(message),
       handleAutoMod(message),
       handleAntiSpam(message),
       handleBang(message),
@@ -125,7 +123,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       try {
         const id = interaction.customId;
 
-        if (id === 'vc_rename' || id === 'vc_lock' || id === 'vc_unlock') {
+        if (['vc_rename','vc_lock','vc_unlock','vc_allow','vc_deny','vc_kick','vc_limit'].includes(id)) {
           return await handleVoiceHubButton(interaction);
         }
 
@@ -169,7 +167,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     }
   });
 
-  // ── Offline DM — sadece bir kez gönder ────────────────────────────────────
+  // ── Offline DM — sadece bir kez ───────────────────────────────────────────
   let shutdownSent = false;
 
   async function sendOfflineDM() {
@@ -178,33 +176,16 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     try {
       const user = await client.users.fetch(OWNER_DM_ID);
       await user.send('deaktif oldum');
-      console.log(`📩 Offline DM gönderildi → ${OWNER_DM_ID}`);
+      console.log(`📩 Offline DM → ${OWNER_DM_ID}`);
     } catch (err) {
       console.error('Offline DM gönderilemedi:', err.message);
     }
   }
 
-  process.on('SIGTERM', async () => {
-    await sendOfflineDM();
-    client.destroy();
-    process.exit(0);
-  });
+  process.on('SIGTERM', async () => { await sendOfflineDM(); client.destroy(); process.exit(0); });
+  process.on('SIGINT',  async () => { await sendOfflineDM(); client.destroy(); process.exit(0); });
+  process.on('uncaughtException',  (err) => { console.error('Uncaught exception:', err); process.exit(1); });
+  process.on('unhandledRejection', (r)   => { console.error('Unhandled rejection:', r); });
 
-  process.on('SIGINT', async () => {
-    await sendOfflineDM();
-    client.destroy();
-    process.exit(0);
-  });
-
-  process.on('uncaughtException', (err) => {
-    console.error('Uncaught exception:', err);
-    process.exit(1);
-  });
-
-  process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled rejection:', reason);
-  });
-
-  // ── Login ──────────────────────────────────────────────────────────────────
   client.login(config.token);
   

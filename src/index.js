@@ -28,6 +28,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     handleVoiceChannelCreate,
     handleVoiceChannelDelete,
     handleVoiceHubButton,
+    handleVoiceHubModal,
   } from './voicechannel.js';
 
   const OWNER_DM_ID = '1510414431824384193';
@@ -62,7 +63,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
     });
     console.log(`🎮 Status: Playing ${config.botStatus.text}`);
 
-    // Voice Hub panel mesajını başlat — hata olursa botu çökertme
     try {
       await initVoiceHub(c);
     } catch (err) {
@@ -110,16 +110,25 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
 
   // ── Interactions ───────────────────────────────────────────────────────────
   client.on(Events.InteractionCreate, async (interaction) => {
+    // ── Modal submit ──
+    if (interaction.isModalSubmit()) {
+      try {
+        if (await handleVoiceHubModal(interaction)) return;
+      } catch (err) {
+        console.error('Modal handler error:', err);
+      }
+      return;
+    }
+
+    // ── Buttons ──
     if (interaction.isButton()) {
       try {
         const id = interaction.customId;
 
-        // Voice Hub butonları
         if (id === 'vc_rename' || id === 'vc_lock' || id === 'vc_unlock') {
           return await handleVoiceHubButton(interaction);
         }
 
-        // Giveaway buttons
         if (id === 'giveaway_join' || id === 'giveaway_leave') {
           await interaction.deferUpdate();
           const ga = getGiveaway(interaction.message.id);
@@ -135,7 +144,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
           return interaction.followUp({ content: msg, flags: 64 });
         }
 
-        // Ticket buttons
         if (id === 'ticket_open')  return await openTicket(interaction);
         if (id === 'ticket_close') return await closeTicket(interaction);
 
@@ -145,6 +153,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       return;
     }
 
+    // ── Slash commands ──
     if (!interaction.isChatInputCommand()) return;
     const command = client.commands.get(interaction.commandName);
     if (!command) return;
@@ -156,7 +165,7 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
       try {
         if (interaction.replied || interaction.deferred) await interaction.followUp(msg);
         else await interaction.reply(msg);
-      } catch { /* ignore secondary error */ }
+      } catch { /* ignore */ }
     }
   });
 
@@ -188,7 +197,6 @@ import { Client, GatewayIntentBits, Collection, Events, ActivityType } from 'dis
   });
 
   process.on('uncaughtException', (err) => {
-    // Crash loop'u önlemek için sadece logla, DM gönderme, çık
     console.error('Uncaught exception:', err);
     process.exit(1);
   });

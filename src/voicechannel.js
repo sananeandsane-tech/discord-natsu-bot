@@ -4,6 +4,9 @@ import {
     ButtonBuilder,
     ButtonStyle,
     ChannelType,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
   } from 'discord.js';
   import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
   import { join, dirname } from 'path';
@@ -111,7 +114,6 @@ import {
     const member = newState.member;
     const guild  = newState.guild;
 
-    // Kullanıcının zaten kanalı varsa oraya taşı
     const existing = [...tempChannels.entries()].find(([, v]) => v.ownerId === member.id);
     if (existing) {
       await member.voice.setChannel(existing[0]).catch(() => {});
@@ -164,6 +166,28 @@ import {
     }
 
     const [channelId] = entry;
+
+    if (customId === 'vc_rename') {
+      // Modal popup aç — kanal ID'sini customId'ye göm
+      const modal = new ModalBuilder()
+        .setCustomId(`vc_rename_modal_${channelId}`)
+        .setTitle('Kanal Adını Değiştir');
+
+      const nameInput = new TextInputBuilder()
+        .setCustomId('vc_new_name')
+        .setLabel('Yeni Kanal Adı')
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(1)
+        .setMaxLength(100)
+        .setPlaceholder('Örn: Müzik Odası')
+        .setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(nameInput));
+      await interaction.showModal(modal);
+      return true;
+    }
+
+    // Kilit / kilit aç için kanal referansı gerekli
     const voiceChannel = guild.channels.cache.get(channelId)
       ?? await guild.channels.fetch(channelId).catch(() => null);
 
@@ -174,23 +198,7 @@ import {
       return true;
     }
 
-    if (customId === 'vc_rename') {
-      await interaction.reply({ content: '✏️ Yeni kanal adını **bu kanala** yazın (30 saniye süreniz var):', flags: 64 });
-      try {
-        const collected = await interaction.channel.awaitMessages({
-          filter: (m) => m.author.id === user.id,
-          max: 1,
-          time: 30_000,
-          errors: ['time'],
-        });
-        const newName = collected.first().content.trim().slice(0, 100);
-        await collected.first().delete().catch(() => {});
-        await voiceChannel.setName(`🔊 ${newName}`);
-        await interaction.followUp({ content: `✅ Kanal adın **🔊 ${newName}** olarak değiştirildi.`, flags: 64 });
-      } catch {
-        await interaction.followUp({ content: '⏱️ Süre doldu, kanal adı değiştirilmedi.', flags: 64 });
-      }
-    } else if (customId === 'vc_lock') {
+    if (customId === 'vc_lock') {
       await voiceChannel.permissionOverwrites.edit(guild.roles.everyone, { Connect: false });
       await interaction.reply({ content: '🔒 Kanalın kilitlendi. Artık kimse katılamaz.', flags: 64 });
     } else if (customId === 'vc_unlock') {
@@ -198,6 +206,34 @@ import {
       await interaction.reply({ content: '🔓 Kanalının kilidi açıldı. Herkes katılabilir.', flags: 64 });
     }
 
+    return true;
+  }
+
+  export async function handleVoiceHubModal(interaction) {
+    if (!interaction.customId.startsWith('vc_rename_modal_')) return false;
+
+    const channelId  = interaction.customId.replace('vc_rename_modal_', '');
+    const newName    = interaction.fields.getTextInputValue('vc_new_name').trim();
+
+    // Sahiplik kontrolü
+    const entry = [...tempChannels.entries()].find(([id, v]) => id === channelId && v.ownerId === interaction.user.id);
+    if (!entry) {
+      await interaction.reply({ content: '❌ Bu kanal sana ait değil veya artık mevcut değil.', flags: 64 });
+      return true;
+    }
+
+    const voiceChannel = interaction.guild.channels.cache.get(channelId)
+      ?? await interaction.guild.channels.fetch(channelId).catch(() => null);
+
+    if (!voiceChannel) {
+      tempChannels.delete(channelId);
+      await refreshPanel();
+      await interaction.reply({ content: '❌ Ses kanalın artık mevcut değil.', flags: 64 });
+      return true;
+    }
+
+    await voiceChannel.setName(`🔊 ${newName}`);
+    await interaction.reply({ content: `✅ Kanal adın **🔊 ${newName}** olarak değiştirildi.`, flags: 64 });
     return true;
   }
 
